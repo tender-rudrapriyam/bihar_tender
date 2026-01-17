@@ -24,6 +24,9 @@ if not exist ".git" (
     git remote add origin https://github.com/tender-rudrapriyam/bihar_tender.git
 )
 
+REM Rename master to main if needed
+git branch -M main
+
 REM Add all files
 echo [INFO] Adding files...
 git add .

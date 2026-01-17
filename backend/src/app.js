@@ -34,6 +34,23 @@ app.get('/api/tenders', async (req, res) => {
   }
 });
 
+// Get tender detail
+app.get('/api/tenders/:id/detail', async (req, res) => {
+  try {
+    const detail = await prisma.tenderDetail.findUnique({
+      where: { tenderId: req.params.id }
+    });
+
+    if (!detail) {
+      return res.status(404).json({ error: 'Tender detail not found' });
+    }
+
+    res.json(detail);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch tender detail' });
+  }
+});
+
 // Send tender email brief
 app.post('/api/notifications/brief', async (req, res) => {
   try {

@@ -25,10 +25,24 @@ model Tender {
   scrapedAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
+  detail            TenderDetail?
+
   @@index([tenderNumber])
   @@index([department])
   @@index([status])
   @@map("tenders")
+}
+
+model TenderDetail {
+  id        String   @id @default(uuid())
+  tenderId  String   @unique
+  data      Json
+  sourceUrl String?
+  fetchedAt DateTime @default(now())
+
+  tender Tender @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+
+  @@map("tender_details")
 }
 
 model User {

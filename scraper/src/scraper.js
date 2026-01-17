@@ -54,6 +54,8 @@ class BiharTenderScraper {
           const cells = rows.eq(i).find('td');
           if (cells.length < 5) continue;
 
+          const detailUrl = this.extractDetailUrl(rows.eq(i));
+
           const tenderData = {
             tenderNumber: cells.eq(1).text().trim(),
             title: cells.eq(2).text().trim(),
@@ -70,16 +72,41 @@ class BiharTenderScraper {
             where: { tenderNumber: tenderData.tenderNumber }
           });
 
+          let tenderRecord;
+
           if (existing) {
-            await prisma.tender.update({
+            tenderRecord = await prisma.tender.update({
               where: { tenderNumber: tenderData.tenderNumber },
               data: tenderData
             });
             tendersUpdated++;
           } else {
-            await prisma.tender.create({ data: tenderData });
+            tenderRecord = await prisma.tender.create({ data: tenderData });
             tendersNew++;
             console.log(`✅ New tender: ${tenderData.tenderNumber}`);
+          }
+
+          if (detailUrl && tenderRecord) {
+            try {
+              const detailData = await this.fetchTenderDetails(browser, detailUrl);
+              if (detailData) {
+                await prisma.tenderDetail.upsert({
+                  where: { tenderId: tenderRecord.id },
+                  update: {
+                    data: detailData,
+                    sourceUrl: detailUrl,
+                    fetchedAt: new Date()
+                  },
+                  create: {
+                    tenderId: tenderRecord.id,
+                    data: detailData,
+                    sourceUrl: detailUrl
+                  }
+                });
+              }
+            } catch (detailError) {
+              console.error(`⚠️ Detail scrape failed for ${tenderData.tenderNumber}:`, detailError.message);
+            }
           }
         } catch (error) {
           console.error(`❌ Error processing row ${i}:`, error.message);
@@ -161,6 +188,127 @@ class BiharTenderScraper {
       return parseFloat(cleaned) || null;
     } catch {}
     return null;
+  }
+
+  extractDetailUrl(row) {
+    try {
+      const anchor = row.find('a[href]');
+      let url = anchor.attr('href');
+
+      if (!url) {
+        const clickable = row.find('a[onclick],button[onclick]').first();
+        const onclick = clickable.attr('onclick');
+        if (onclick) {
+          const match = onclick.match(/'(.*?)'|"(.*?)"/);
+          url = match ? (match[1] || match[2]) : null;
+        }
+      }
+
+      if (!url) return null;
+
+      if (url.startsWith('javascript:')) {
+        const match = url.match(/'(.*?)'|"(.*?)"/);
+        url = match ? (match[1] || match[2]) : null;
+      }
+
+      if (!url) return null;
+
+      return new URL(url, this.baseUrl).href;
+    } catch {
+      return null;
+    }
+  }
+
+  async fetchTenderDetails(browser, detailUrl) {
+    const detailPage = await browser.newPage();
+    try {
+      await detailPage.goto(detailUrl, {
+        waitUntil: 'networkidle2',
+        timeout: 60000
+      });
+
+      await detailPage.waitForTimeout(1500);
+      const content = await detailPage.content();
+      return this.parseDetailPage(content, detailUrl);
+    } finally {
+      await detailPage.close();
+    }
+  }
+
+  parseDetailPage(content, detailUrl) {
+    const $ = cheerio.load(content);
+    const sections = {};
+    const title = $('h1, h2, h3').first().text().trim();
+
+    const getHeading = (table, index) => {
+      const heading = $(table)
+        .prevAll('h1, h2, h3, h4, .panel-title, .table-title, .portlet-title')
+        .first()
+        .text()
+        .trim();
+      return heading || `table_${index + 1}`;
+    };
+
+    const normalizeCell = (cell) => {
+      const link = cell.find('a[href]').attr('href');
+      const text = cell.text().replace(/\s+/g, ' ').trim();
+      if (link) {
+        return { text, href: new URL(link, detailUrl).href };
+      }
+      return text;
+    };
+
+    $('table').each((index, table) => {
+      const heading = getHeading(table, index);
+      const $table = $(table);
+      const headerCells = $table.find('tr').first().find('th');
+      let tableData = null;
+
+      if (headerCells.length >= 2) {
+        const headers = headerCells
+          .map((_, th) => $(th).text().replace(/\s+/g, ' ').trim())
+          .get();
+
+        tableData = $table.find('tr').slice(1).map((_, row) => {
+          const cells = $(row).find('td');
+          if (!cells.length) return null;
+          const rowObj = {};
+          headers.forEach((header, idx) => {
+            rowObj[header || `col_${idx + 1}`] = normalizeCell(cells.eq(idx));
+          });
+          return rowObj;
+        }).get().filter(Boolean);
+      } else {
+        const rows = $table.find('tr');
+        const kv = {};
+        rows.each((_, row) => {
+          const cells = $(row).find('td');
+          if (cells.length >= 2) {
+            const key = $(cells[0]).text().replace(/\s+/g, ' ').trim();
+            const value = normalizeCell(cells.eq(1));
+            if (key) kv[key] = value;
+          }
+        });
+        if (Object.keys(kv).length > 0) tableData = kv;
+      }
+
+      if (tableData) {
+        if (!sections[heading]) {
+          sections[heading] = tableData;
+        } else if (Array.isArray(sections[heading])) {
+          sections[heading].push(tableData);
+        } else {
+          sections[heading] = [sections[heading], tableData];
+        }
+      }
+    });
+
+    return {
+      detailUrl,
+      title,
+      sections,
+      scrapedAt: new Date().toISOString()
+    };
   }
 }
 

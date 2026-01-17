@@ -42,7 +42,15 @@ git commit -m "%commit_msg%"
 REM Push to GitHub
 echo.
 echo [INFO] Pushing to GitHub...
-git push -u origin main
+
+REM Use GitHub token from .env if available
+for /f "tokens=2 delims==" %%a in ('findstr /i "GITHUB_TOKRN" .env 2^>nul') do set GITHUB_TOKEN=%%a
+if defined GITHUB_TOKEN (
+    echo [INFO] Using GitHub token from .env...
+    git push https://%GITHUB_TOKEN%@github.com/tender-rudrapriyam/bihar_tender.git main
+) else (
+    git push -u origin main
+)
 
 if %errorlevel% equ 0 (
     echo.

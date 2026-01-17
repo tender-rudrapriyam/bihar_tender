@@ -1,6 +1,6 @@
 const puppeteer = require('puppeteer');
 const cheerio = require('cheerio');
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require('../../backend/node_modules/@prisma/client');
 require('dotenv').config();
 
 const prisma = new PrismaClient();
@@ -129,9 +129,26 @@ class BiharTenderScraper {
   parseDate(dateStr) {
     if (!dateStr || dateStr === '-') return null;
     try {
-      const parts = dateStr.split(/[-/]/);
-      if (parts.length === 3) {
-        return new Date(parts[2], parts[1] - 1, parts[0]);
+      const datePart = dateStr.split(' ')[0].trim();
+      const parts = datePart.split(/[-/]/).map((p) => p.trim());
+      if (parts.length === 3 && parts.every(Boolean)) {
+        let day;
+        let month;
+        let year;
+
+        if (parts[0].length === 4) {
+          year = Number(parts[0]);
+          month = Number(parts[1]);
+          day = Number(parts[2]);
+        } else {
+          day = Number(parts[0]);
+          month = Number(parts[1]);
+          year = Number(parts[2]);
+        }
+
+        const parsed = new Date(year, month - 1, day);
+        if (Number.isNaN(parsed.getTime())) return null;
+        return parsed;
       }
     } catch {}
     return null;

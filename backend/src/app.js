@@ -34,6 +34,33 @@ app.get('/api/tenders', async (req, res) => {
   }
 });
 
+// Send tender email brief
+app.post('/api/notifications/brief', async (req, res) => {
+  try {
+    const { tenderIds, limit = 20, toEmail } = req.body || {};
+    const where = Array.isArray(tenderIds) && tenderIds.length > 0
+      ? { id: { in: tenderIds } }
+      : {};
+
+    const tenders = await prisma.tender.findMany({
+      where,
+      take: Array.isArray(tenderIds) && tenderIds.length > 0 ? undefined : Number(limit) || 20,
+      orderBy: { scrapedAt: 'desc' }
+    });
+
+    const emailService = require('./services/email');
+    await emailService.sendTenderBrief(tenders, toEmail);
+
+    res.json({
+      message: 'Email brief sent',
+      count: tenders.length
+    });
+  } catch (error) {
+    console.error('Email brief error:', error);
+    res.status(500).json({ error: 'Failed to send email brief' });
+  }
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server on port ${PORT}`));
 

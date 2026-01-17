@@ -4,22 +4,32 @@ const prisma = new PrismaClient();
 
 class EmailService {
   constructor() {
-    this.transporter = nodemailer.createTransporter({
+    const apiKey = process.env.SENDGRID_API_KEY;
+    if (!apiKey || apiKey === 'SG.your-key-here') {
+      this.transporter = null;
+      return;
+    }
+
+    this.transporter = nodemailer.createTransport({
       host: 'smtp.sendgrid.net',
       port: 587,
       auth: {
         user: 'apikey',
-        pass: process.env.SENDGRID_API_KEY
+        pass: apiKey
       }
     });
   }
 
-  async sendTenderBrief(tenders) {
+  async sendTenderBrief(tenders, toEmail) {
+    if (!this.transporter) {
+      console.warn('Email transporter not configured. Skipping email send.');
+      return;
+    }
     const html = this.generateEmailHTML(tenders);
     
     await this.transporter.sendMail({
       from: process.env.EMAIL_FROM || 'tender.rudrapriyam@gmail.com',
-      to: 'tender.rudrapriyam@gmail.com',
+      to: toEmail || process.env.EMAIL_TO || process.env.EMAIL_FROM || 'tender.rudrapriyam@gmail.com',
       subject: `Bihar Tender Brief - ${new Date().toLocaleDateString()}`,
       html,
       text: this.generatePlainText(tenders)
@@ -29,7 +39,7 @@ class EmailService {
   generateEmailHTML(tenders) {
     const stats = {
       total: tenders.length,
-      highValue: tenders.filter(t => t.tenderValue > 1000000).length,
+      highValue: tenders.filter(t => Number(t.tenderValue || 0) > 1000000).length,
       departments: [...new Set(tenders.map(t => t.department))].length
     };
 
@@ -74,7 +84,7 @@ class EmailService {
       <div class="tender-title">${t.title}</div>
       <p><strong>ID:</strong> ${t.tenderNumber}</p>
       <p><strong>Department:</strong> ${t.department}</p>
-      ${t.tenderValue ? `<p><strong>Value:</strong> ₹${t.tenderValue.toLocaleString('en-IN')}</p>` : ''}
+      ${t.tenderValue ? `<p><strong>Value:</strong> ₹${Number(t.tenderValue).toLocaleString('en-IN')}</p>` : ''}
       ${t.bidSubmissionDate ? `<p><strong>Deadline:</strong> ${new Date(t.bidSubmissionDate).toLocaleDateString()}</p>` : ''}
     </div>
   `).join('')}

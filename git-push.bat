@@ -52,7 +52,9 @@ if defined GITHUB_TOKEN (
     git push -u origin main
 )
 
-if %errorlevel% equ 0 (
+set PUSH_ERRORLEVEL=%errorlevel%
+
+if %PUSH_ERRORLEVEL% equ 0 (
     echo.
     echo ========================================
     echo [SUCCESS] Successfully pushed to GitHub!

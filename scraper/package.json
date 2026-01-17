@@ -1,0 +1,15 @@
+{
+  "name": "bihar-tender-scraper",
+  "version": "1.0.0",
+  "description": "Web scraper for Bihar e-procurement",
+  "main": "src/scraper.js",
+  "scripts": {
+    "start": "node src/scraper.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.7.0",
+    "cheerio": "^1.0.0-rc.12",
+    "dotenv": "^16.3.1",
+    "puppeteer": "^21.6.1"
+  }
+}

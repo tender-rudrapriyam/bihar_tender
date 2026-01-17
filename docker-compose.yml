@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14-alpine
+    container_name: bihar_tender_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tender_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-SecurePass123!}
+      POSTGRES_DB: bihar_tenders
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tender_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: bihar_tender_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+    container_name: bihar_tender_api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://tender_user:${DB_PASSWORD:-SecurePass123!}@postgres:5432/bihar_tenders
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-change-this-secret-key}
+      EMAIL_SERVICE: ${EMAIL_SERVICE:-sendgrid}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      EMAIL_FROM: tender.rudrapriyam@gmail.com
+      PORT: 5000
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend/logs:/app/logs
+
+  # Scraper Service
+  scraper:
+    build:
+      context: ./scraper
+    container_name: bihar_tender_scraper
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://tender_user:${DB_PASSWORD:-SecurePass123!}@postgres:5432/bihar_tenders
+      SCRAPER_INTERVAL: ${SCRAPER_INTERVAL:-86400000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    volumes:
+      - ./scraper/logs:/app/logs
+      - ./scraper/downloads:/app/downloads
+
+  # PGAdmin (Optional - for database management)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: bihar_tender_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@tender.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    profiles:
+      - dev
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: bihar_tender_network

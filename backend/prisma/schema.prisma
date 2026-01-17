@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tender {
+  id                String      @id @default(uuid())
+  tenderNumber      String      @unique
+  title             String
+  description       String?     @db.Text
+  department        String
+  organization      String?
+  tenderValue       Decimal?    @db.Decimal(15, 2)
+  documentCost      Decimal?    @db.Decimal(10, 2)
+  publishDate       DateTime?
+  bidSubmissionDate DateTime?
+  openingDate       DateTime?
+  status            String      @default("ACTIVE")
+  documentUrl       String?
+  sourceUrl         String?
+  scrapedAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([tenderNumber])
+  @@index([department])
+  @@index([status])
+  @@map("tenders")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password      String
+  firstName     String?
+  lastName      String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  
+  subscriptions Subscription[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Subscription {
+  id          String   @id @default(uuid())
+  userId      String
+  keywords    String[]
+  departments String[]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  message   String   @db.Text
+  isRead    Boolean  @default(false)
+  isSent    Boolean  @default(false)
+  sentAt    DateTime?
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model ScraperLog {
+  id            String    @id @default(uuid())
+  startTime     DateTime  @default(now())
+  endTime       DateTime?
+  status        String
+  tendersFound  Int       @default(0)
+  tendersNew    Int       @default(0)
+  tendersUpdated Int      @default(0)
+  errors        String?   @db.Text
+
+  @@map("scraper_logs")
+}

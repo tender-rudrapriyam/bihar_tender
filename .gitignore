@@ -1,0 +1,64 @@
+# .gitignore
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Logs
+logs/
+*.log
+backend/logs/
+scraper/logs/
+
+# Downloads
+scraper/downloads/
+*.pdf
+
+# Database
+*.sqlite
+*.db
+
+# Prisma
+backend/prisma/.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+build/
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+
+# Temporary files
+tmp/
+temp/
+
+# Docker
+*.env.docker
+
+# PM2
+.pm2/
+pids/
+*.pid
+*.seed
+
+# Other
+.cache/

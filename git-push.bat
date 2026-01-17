@@ -52,9 +52,19 @@ if defined GITHUB_TOKEN (
     git push -u origin main
 )
 
-set PUSH_ERRORLEVEL=%errorlevel%
-
-if %PUSH_ERRORLEVEL% equ 0 (
+if errorlevel 1 (
+    echo.
+    echo [ERROR] Push failed!
+    echo.
+    echo You may need to:
+    echo 1. Set up Git credentials
+    echo 2. Configure Git user:
+    echo    git config --global user.name "Your Name"
+    echo    git config --global user.email "your.email@example.com"
+    echo 3. Check repository permissions
+    echo 4. Pull latest changes: git pull origin main --rebase
+    echo.
+) else (
     echo.
     echo ========================================
     echo [SUCCESS] Successfully pushed to GitHub!
@@ -66,18 +76,6 @@ if %PUSH_ERRORLEVEL% equ 0 (
     echo 1. Configure GitHub Secrets for CI/CD
     echo 2. Go to: https://github.com/tender-rudrapriyam/bihar_tender/settings/secrets/actions
     echo 3. Add required secrets (see GITHUB_SETUP.md)
-    echo.
-) else (
-    echo.
-    echo [ERROR] Push failed!
-    echo.
-    echo You may need to:
-    echo 1. Set up Git credentials
-    echo 2. Configure Git user:
-    echo    git config --global user.name "Your Name"
-    echo    git config --global user.email "your.email@example.com"
-    echo 3. Check repository permissions
-    echo 4. Pull latest changes: git pull origin main --rebase
     echo.
 )
 

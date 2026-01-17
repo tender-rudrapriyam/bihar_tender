@@ -6,15 +6,19 @@ on:
   pull_request:
     branches: [ main ]
 
+concurrency:
+  group: railway-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
       
@@ -34,9 +38,41 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+      RAILWAY_ENVIRONMENT: production
     
     steps:
-      - uses: actions/checkout@v3
-      
-      - name: Deploy notification
-        run: echo "✅ Ready for deployment"
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Railway CLI
+        run: npm i -g @railway/cli
+
+      - name: Validate Railway secrets
+        run: |
+          if [ -z "${RAILWAY_TOKEN}" ]; then echo "Missing secret: RAILWAY_TOKEN"; exit 1; fi
+          if [ -z "${RAILWAY_PROJECT_ID}" ]; then echo "Missing secret: RAILWAY_PROJECT_ID"; exit 1; fi
+
+      - name: Deploy backend
+        run: |
+          railway up --ci --detach \
+            --project "${RAILWAY_PROJECT_ID}" \
+            --environment "${RAILWAY_ENVIRONMENT}" \
+            --service backend \
+            --path-as-root \
+            backend
+
+      - name: Deploy frontend
+        run: |
+          railway up --ci --detach \
+            --project "${RAILWAY_PROJECT_ID}" \
+            --environment "${RAILWAY_ENVIRONMENT}" \
+            --service frontend \
+            --path-as-root \
+            frontend

@@ -1,4 +1,8 @@
-FROM node:18-alpine
+FROM node:18-bullseye-slim
+
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends openssl ca-certificates \
+	&& rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -11,4 +15,4 @@ RUN npx prisma generate
 
 EXPOSE 5000
 
-CMD ["node", "src/app.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node src/app.js"]

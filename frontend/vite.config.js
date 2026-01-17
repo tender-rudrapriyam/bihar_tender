@@ -9,5 +9,12 @@ export default defineConfig({
       '/api': 'http://localhost:5000',
       '/health': 'http://localhost:5000'
     }
+  },
+  preview: {
+    allowedHosts: [
+      'frontend-production-b15f.up.railway.app',
+      'www.rudrapriyam.in',
+      'rudrapriyam.in'
+    ]
   }
 })

@@ -17,6 +17,7 @@ app.get('/health', async (req, res) => {
     await prisma.$queryRaw`SELECT 1`;
     res.json({ status: 'healthy', database: 'connected' });
   } catch (error) {
+    console.error('Health check failed:', error);
     res.status(503).json({ status: 'unhealthy' });
   }
 });
@@ -30,6 +31,7 @@ app.get('/api/tenders', async (req, res) => {
     });
     res.json(tenders);
   } catch (error) {
+    console.error('Failed to fetch tenders:', error);
     res.status(500).json({ error: 'Failed to fetch tenders' });
   }
 });
@@ -47,6 +49,7 @@ app.get('/api/tenders/:id/detail', async (req, res) => {
 
     res.json(detail);
   } catch (error) {
+    console.error('Failed to fetch tender detail:', error);
     res.status(500).json({ error: 'Failed to fetch tender detail' });
   }
 });
